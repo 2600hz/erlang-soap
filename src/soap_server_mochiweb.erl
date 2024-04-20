@@ -40,7 +40,7 @@ start(Module, Options) ->
 stop() ->
     mochiweb_http:stop().
 
-%% This is a simple example, especially if you want to run other 
+%% This is a simple example, especially if you want to run other
 %% services on the webserver besides this soap service you will
 %% have to do some routing here, for example based on the URL.
 make_handler_fun(Handler, Options) ->
@@ -52,14 +52,14 @@ make_handler_fun(Handler, Options) ->
 %% This is called by the mochiweb server for each request.
 handle(Req, Handler, Options) ->
     try
-        {continue, Soap_req} = 
+        {continue, Soap_req} =
             soap_server_handler:new_req(Handler, mochiweb, Options, Req),
         Soap_req2 = enrich_req(Req, Soap_req),
         case soap_server_handler:check_http_conformance(Soap_req2) of
             {continue, Soap_req3} ->
                 Req_body = Req:recv_body(),
                 Soap_req4 = soap_req:set_http_body(Soap_req3, Req_body),
-                Handler_resp = 
+                Handler_resp =
                     soap_server_handler:handle_message(Req_body, Soap_req4),
                 {ok, StatusCode, Headers, Resp_body, _Req2} = Handler_resp,
                 Req:respond({StatusCode, Headers, Resp_body});
@@ -67,9 +67,9 @@ handle(Req, Handler, Options) ->
                 Req:respond({StatusCode, Headers, Resp_body})
         end
     catch
-        Class:Reason ->
-            io:format("Class: ~p, Reason: ~p, Stack: ~p~n", 
-                      [Class, Reason, erlang:get_stacktrace()])
+        Class:Reason:ST ->
+            io:format("Class: ~p, Reason: ~p, Stack: ~p~n",
+                      [Class, Reason, ST])
     end.
 
 enrich_req(Req, Soap_req) ->

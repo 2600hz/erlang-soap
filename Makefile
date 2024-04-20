@@ -4,9 +4,9 @@ all: compile
 
 compile:
 	@echo "Fetching dependencies..."
-	@rebar get-deps
+	@rebar3 get-deps
 	@echo "Compiling..."
-	@rebar compile
+	@rebar3 compile
 
 ct: compile test_deps
 	@echo "Running common tests..."
@@ -25,7 +25,7 @@ test_deps:
 	@cd test && rebar get-deps && rebar compile && cd ..
 
 clean:
-	@rebar clean
+	@rebar3 clean
 	@cd test && rebar clean && cd ..
 
 distclean: clean

@@ -21,16 +21,16 @@
 %%% Provides a couple of options for the parsing of the SOAP header and body.
 %%%
 %%% Each of the functions returns a tuple: {Sax_callback, Initial_state}
-%%% 
+%%%
 -module(soap_parsers).
 
--export([simple_form/0, 
-         very_simple_form/0, 
-         skip/1, 
-         data_mapper/1, 
+-export([simple_form/0,
+         very_simple_form/0,
+         skip/1,
+         data_mapper/1,
          map/0]).
 
--export([test/0, 
+-export([test/0,
          tests/0]).
 
 -type sax_callback_fun() :: fun((erlsom:sax_event(), any()) -> any()).
@@ -43,7 +43,7 @@
 %%% Exported functions
 %%% ============================================================================
 
-%% translates the XML to 'simple_form' 
+%% translates the XML to 'simple_form'
 -spec simple_form() -> {sax_callback_fun(), undefined}.
 simple_form() ->
     {fun erlsom_simple_form:callback/2, undefined}.
@@ -51,8 +51,8 @@ simple_form() ->
 %% like simple_form, but without the {Namespace} prefix.
 -spec very_simple_form() -> {sax_callback_fun(), any()}.
 very_simple_form() ->
-    Namefun = 
-        fun(Name, _, _) -> 
+    Namefun =
+        fun(Name, _, _) ->
             Name
         end,
     {fun erlsom_simple_form:callback/2, [{name_function, Namefun}]}.
@@ -88,14 +88,14 @@ map() ->
 %%% ============================================================================
 %%% Internal functions
 %%%
-%%% The rest of this module deals with the 'map' and the 'skip' parsers. 
+%%% The rest of this module deals with the 'map' and the 'skip' parsers.
 %%% ============================================================================
 
 %% map
 callback(Event, State) ->
     try
         case Event of
-            startDocument -> 
+            startDocument ->
                 case State of
                     #mState{} ->
                         State;
@@ -112,12 +112,12 @@ callback(Event, State) ->
                 characters(Event, State);
             {ignorableWhitespace, _Characters} -> State;
             {processingInstruction, _Target, _Data} -> State;
-            {startPrefixMapping, _Prefix, _URI} -> 
+            {startPrefixMapping, _Prefix, _URI} ->
                 State;
             {endPrefixMapping, _Prefix} ->
                 State;
-            endDocument -> 
-                case State of 
+            endDocument ->
+                case State of
                     {result, Root} ->
                         Root;
                     _Else ->
@@ -129,8 +129,8 @@ callback(Event, State) ->
                 exit(Message)
         end
     catch
-        error:Reason -> 
-            throwError(error, {Reason,erlang:get_stacktrace()}, Event, State);
+        error:Reason:ST ->
+            throwError(error, {Reason,ST}, Event, State);
         Class:Exception -> throwError(Class, Exception, Event, State)
     end.
 
@@ -138,7 +138,7 @@ callback(Event, State) ->
 skip_callback(Event, State) ->
     try
         case Event of
-            startDocument -> 
+            startDocument ->
                 case State of
                     #sState{} ->
                         State;
@@ -150,14 +150,14 @@ skip_callback(Event, State) ->
                 State#sState{depth = Depth + 1};
             {endElement, _Uri, _LocalName, _Prefix} ->
                 Depth = State#sState.depth,
-                case Depth of 
+                case Depth of
                     1 ->
                         {result, State#sState.value};
                     _ ->
                         State#sState{depth = Depth - 1}
                 end;
-            endDocument -> 
-                case State of 
+            endDocument ->
+                case State of
                     {result, Value} ->
                         Value;
                     _Else ->
@@ -171,26 +171,26 @@ skip_callback(Event, State) ->
                 State
         end
     catch
-        error:Reason -> 
-            throwError(error, {Reason,erlang:get_stacktrace()}, Event, State);
+        error:Reason:ST ->
+            throwError(error, {Reason,ST}, Event, State);
         Class:Exception -> throwError(Class, Exception, Event, State)
     end.
 
-startElement({startElement, Uri, LocalName, Prefix, Attributes}, 
+startElement({startElement, Uri, LocalName, Prefix, Attributes},
              State = #mState{stack = Stack, nameFun = NameFun}) ->
     Name = NameFun(LocalName, Uri, Prefix, element),
-    State#mState{stack = [{Name, 
+    State#mState{stack = [{Name,
                            processAttributes(Attributes, State)} | Stack]}.
 
 %% Don't wait for the 'endDocument', when we are ready we are ready.
-%% This way the soap_server_handler can parse more than one 
+%% This way the soap_server_handler can parse more than one
 %% consecutive header (otherwise it would have not way to know that
 %% when the end of the first header is reached).
 endElement({endElement, _Uri, _LocalName, _Prefix},
            #mState{stack = [{Name, Elements}]}) ->
     Map = make_map(Elements),
     Document = make_map([{Name, Map}]),
-    %% {result, Document} is a special value that signals to the 
+    %% {result, Document} is a special value that signals to the
     %% calling function that the parsing is done.
     {result, Document};
 
@@ -198,19 +198,19 @@ endElement({endElement, _Uri, _LocalName, _Prefix},
            State) ->
     #mState{stack = [{Name, Elements} | [{ParentName, ParentElements} | Tail]]} = State,
     Map = make_map(Elements),
-    State#mState{stack = [{ParentName, 
+    State#mState{stack = [{ParentName,
                           [{Name, Map} | ParentElements]} | Tail]}.
 
 characters({characters, Characters}, State) when is_list(Characters) ->
     characters({characters, unicode:characters_to_binary(Characters)}, State);
 characters({characters, Characters},
-           State = #mState{stack = [{Name, 
+           State = #mState{stack = [{Name,
                                      [{characters, FirstBit} | OtherElements]
                                     } | Tail]})
         when is_binary(FirstBit) ->
-    State#mState{stack = [{Name, 
-                          [{characters, 
-                            <<FirstBit/binary, 
+    State#mState{stack = [{Name,
+                          [{characters,
+                            <<FirstBit/binary,
                               Characters/binary>>} | OtherElements]
                           } | Tail]};
 characters({characters, _Characters} = Event,
@@ -221,12 +221,12 @@ processAttributes(Attributes, State) ->
     processAttributes(Attributes, State, []).
 processAttributes([], _State, Acc) ->
     Acc;
-processAttributes([#attribute{localName=LocalName, uri=Uri, 
-                              prefix = Prefix, value=Value} | Tail], 
+processAttributes([#attribute{localName=LocalName, uri=Uri,
+                              prefix = Prefix, value=Value} | Tail],
                   State = #mState{nameFun = NameFun}, Acc) ->
-    processAttributes(Tail, 
-                      State, 
-                      [{NameFun(LocalName, Uri, Prefix, attribute), 
+    processAttributes(Tail,
+                      State,
+                      [{NameFun(LocalName, Uri, Prefix, attribute),
                         binary_value(Value)} | Acc]).
 
 binary_value(V) when is_binary(V) ->
@@ -239,7 +239,7 @@ nameFun(Name, _Namespace, _Prefix, element) ->
     Name;
 nameFun(Name, _Namespace, _Prefix, attribute) ->
     [$@ | Name].
-    
+
 make_map([]) ->
     undefined;
 make_map([{characters, Element}]) ->
@@ -263,25 +263,25 @@ put_in_map(Key, Value, Map) ->
             maps:put(Key, Value, Map)
     end.
 
-throwError(Class, Exception, Event, 
+throwError(Class, Exception, Event,
            #mState{stack = Stack}) ->
-%% "Error while parsing type " 
+%% "Error while parsing type "
 %% Take the ElementRecord at current state, and print the first element
     Message = [{exception, Exception},
-               %% for each of the elements in ResultSoFar, 
+               %% for each of the elements in ResultSoFar,
                %% take the 'elementRecord' element and print the first element (the type).
                {stack, printStackTrace(Stack)},
                %% "Received: "
                {received, Event}],
-    case Class of 
+    case Class of
         'error' -> exit({error, Message});
         'throw' -> throw({error, Message});
         'exit' -> exit({error, Message})
     end;
 
-throwError(Class, Exception, _Event, 
+throwError(Class, Exception, _Event,
            _Something) ->
-    case Class of 
+    case Class of
         'error' -> exit({error, Exception});
         'throw' -> throw({error, Exception});
         'exit' -> exit({error, Exception})
@@ -300,7 +300,7 @@ new_state(Namefun) ->
 %%% A few simple tests
 
 test() ->
-    Xml = 
+    Xml =
         <<"<L1>"
         "   <L2_1 attribute=\"attr_value\" attr2=\"v2\">text L2_1 nr 1</L2_1>"
         "   <L2_1>text L2_1 nr 2</L2_1>"
@@ -310,7 +310,7 @@ test() ->
         "        <L3>text L3</L3>"
         "   </L2_3>"
         "</L1>">>,
-    {ok, Map, _} = erlsom:parse_sax(Xml, undefined, 
+    {ok, Map, _} = erlsom:parse_sax(Xml, undefined,
                                     fun callback/2, [{output_encoding, utf8}]),
     Map.
 
@@ -328,8 +328,8 @@ tests() ->
 test_case({Xml, Result}) ->
     {Skip_fun, Skip_start} = skip(fixed),
     {ok, fixed, _} = erlsom:parse_sax(Xml, Skip_start, Skip_fun, []),
-    {ok, Result, _} = 
-        erlsom:parse_sax(Xml, undefined, 
+    {ok, Result, _} =
+        erlsom:parse_sax(Xml, undefined,
                          fun callback/2, [{output_encoding, utf8}]),
     {Map_fun, Start_state} = map(),
     {ok, Result, _} = erlsom:parse_sax(Xml, Start_state, Map_fun, []).
