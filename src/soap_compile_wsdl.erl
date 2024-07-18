@@ -282,7 +282,7 @@ write_server(Wsdl_file, Service, Port, Options, Module, Handler,
     Exported_operations = exported_operations(Ops),
     Exports = server_exports(),
     Operations = server_ops(Ops, Interface, Example_value),
-    Code = [Intro, Exported_operations, Exports, Operations],
+    Code = [Intro, Exported_operations, Exports, Operations, interface_fun()],
     Filename = Handler ++ ".erl",
     ok = file:write_file(Filename, Code),
     io:format("==> Generated file ~s~n", [Filename]).
@@ -290,7 +290,8 @@ write_server(Wsdl_file, Service, Port, Options, Module, Handler,
 server_header(Wsdl_file, Service, Port, Options, Handler, Module) ->
     info_about_command(Wsdl_file, Service, Port, Options) ++
     "-module(" ++ atom_string(Handler) ++ ").\n\n"
-    "-include(\"" ++ hrl_file_name(Module) ++ "\").\n\n".
+    "-include(\"" ++ hrl_file_name(Module) ++ "\").\n"
+    "-include_lib(\"soap/src/soap.hrl\").\n\n".
 
 server_exports() ->
     "-export([interface/0]).\n\n".
